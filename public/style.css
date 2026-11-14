@@ -257,3 +257,10 @@ body.ro tr.click[data-id]{cursor:default}
 .lg-head small{color:var(--muted);font-size:12.5px}
 .lg-card .btn{justify-content:center}
 .lg-note{margin:0;color:var(--muted);font-size:12px}
+.lg-ok{background:var(--ok-soft);color:var(--ok);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5}
+.lg-links{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:13px}
+.lg-links a{color:var(--brand);text-decoration:none;font-weight:500}
+.lg-links a:hover{text-decoration:underline}
+.tv-badge{margin-left:auto;background:var(--bad);color:#fff;border-radius:999px;font-size:11px;font-weight:600;padding:0 7px;line-height:18px}
+.tv-tbl select{width:auto;padding:5px 9px}
+.tv-tbl tr.tv-pend td{background:var(--warn-soft)}

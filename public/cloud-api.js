@@ -2,7 +2,7 @@
  * app.js giữ nguyên logic, chỉ gọi các hàm sau:
  *   db.collection(col).doc(id).set(obj) / .delete()  → upsert / delete trên bảng Supabase cùng tên
  *   db.collection(col).onSnapshot(cb, errCb)         → tải toàn bộ bảng + Supabase Realtime
- *   user.can("data.write"), user.isOwner()            → theo cột quan_tri trong bảng thanh_vien
+ *   user.can("data.write"), user.isOwner()            → theo quyền trong bảng thanh_vien (quan_tri)
  *   downloads.save({filename, data})                  → tải file trực tiếp từ trình duyệt
  * Bắt buộc đăng nhập (email + mật khẩu) trước khi xem. Quyền được kiểm tra trong CSDL (RLS),
  * giao diện chỉ ẩn/hiện nút cho phù hợp.
@@ -18,8 +18,15 @@
   const say = m => { if (typeof toast === "function") toast(m); else alert(m); };
   const onReady = fn => { if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn); else fn(); };
 
-  // Link mời / đặt lại mật khẩu từ email: sau khi vào phải đặt mật khẩu mới
-  const fromEmailLink = /type=(invite|recovery|signup)/.test(location.hash);
+  // app.js lưu bản sao dữ liệu vào localStorage (dùng khi không có máy chủ). Trên Internet không cần,
+  // và không được để lại cho người dùng sau trên cùng máy: xóa khi mở trang, đóng trang, đăng xuất.
+  const CACHE_KEYS = ["itpc-ct-v1", "itpc-dn-v1"];
+  const clearCache = () => { try { CACHE_KEYS.forEach(k => localStorage.removeItem(k)); } catch (e) {} };
+  clearCache();
+  window.addEventListener("pagehide", clearCache);
+
+  // Link đặt lại mật khẩu / lời mời từ email: sau khi vào phải đặt mật khẩu mới
+  const fromEmailLink = /type=(invite|recovery)/.test(location.hash);
 
   if (!CFG.url || !CFG.key || !window.supabase) {
     onReady(() => { document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif">Chưa cấu hình Supabase (thiếu SUPABASE_URL / SUPABASE_ANON_KEY khi build trên Vercel).</p>'; });
@@ -28,8 +35,8 @@
   }
   const sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
 
-  /* ================= Đăng nhập ================= */
-  let me = null; // {email, ho_ten, thanh_vien, quan_tri}
+  /* ================= Đăng nhập / Đăng ký / Chờ duyệt ================= */
+  let me = null; // {email, ho_ten, quyen, thanh_vien, quan_tri}
   async function whoAmI() {
     const { data, error } = await sb.rpc("toi_la_ai");
     if (error) throw error;
@@ -37,52 +44,129 @@
   }
   const ready = (async () => {
     const { data } = await sb.auth.getSession();
-    if (data.session) {
-      try { me = await whoAmI(); } catch (e) { me = null; }
-      if (me && me.thanh_vien) return me;
-    }
-    me = await showLogin(data.session && me && !me.thanh_vien ? notMemberMsg(me.email) : "");
+    let who = null;
+    if (data.session) { try { who = await whoAmI(); } catch (e) { who = null; } }
+    me = who && who.thanh_vien ? who : await authScreen(who ? "gate" : "login", who);
     return me;
   })();
-  ready.then(() => onReady(() => { renderAccount(); if (fromEmailLink) changePassword(true); }));
+  ready.then(() => onReady(() => { renderAccount(); setupMembers(); if (fromEmailLink) changePassword(true); }));
 
-  const notMemberMsg = email => `Tài khoản ${email} chưa được cấp quyền xem. Nhờ quản trị thêm email này vào danh sách thành viên.`;
+  const QUYEN = { cho_duyet: "Chờ duyệt", xem: "Chỉ xem", quan_tri: "Quản trị", khoa: "Khóa" };
+  const mapErr = m => /invalid login/i.test(m) ? "Email hoặc mật khẩu không đúng."
+    : /email not confirmed/i.test(m) ? "Email chưa được xác nhận. Mở email đăng ký và bấm vào link xác nhận trước."
+    : /already registered|already been registered/i.test(m) ? "Email này đã có tài khoản. Hãy đăng nhập, hoặc dùng Quên mật khẩu."
+    : /rate limit|too many/i.test(m) ? "Thao tác quá nhiều lần, vui lòng thử lại sau ít phút."
+    : /password/i.test(m) && /least|short|weak/i.test(m) ? "Mật khẩu quá ngắn hoặc quá yếu (ít nhất 8 ký tự)."
+    : /signups? not allowed|disabled/i.test(m) ? "Hệ thống đang tắt đăng ký tài khoản mới. Liên hệ quản trị."
+    : m;
 
-  function showLogin(msg) {
+  /** Màn hình trước khi vào app. mode: login | signup | forgot | gate. Trả về thông tin tài khoản khi đã được duyệt. */
+  function authScreen(mode, who) {
     return new Promise(resolve => onReady(() => {
       const box = document.createElement("div");
       box.className = "lg-wrap";
-      box.innerHTML = `
-        <form class="lg-card" novalidate>
-          <div class="lg-head"><img class="logo-img" alt="" src="${escH((document.querySelector(".logo-img") || {}).src || "")}"><div><strong>Quản lý Chương trình ITPC</strong><small>Đăng nhập để dùng dữ liệu chung của phòng</small></div></div>
-          <label>Email<input name="e" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ten@itpc.gov.vn" required></label>
-          <label>Mật khẩu<input name="p" type="password" autocomplete="current-password" required></label>
-          <div class="err lg-err" ${msg ? "" : "hidden"}>${escH(msg)}</div>
-          <button class="btn pri" type="submit">Đăng nhập</button>
-          <p class="lg-note">Chưa có tài khoản hoặc quên mật khẩu? Liên hệ quản trị của phòng.</p>
-        </form>`;
       document.body.appendChild(box);
-      const f = box.querySelector("form"), er = box.querySelector(".lg-err");
-      try { f.elements.e.value = localStorage.getItem("itpc-last-email") || ""; } catch (e) {}
-      setTimeout(() => (f.elements.e.value ? f.elements.p : f.elements.e).focus(), 30);
-      f.onsubmit = async ev => {
-        ev.preventDefault();
-        er.hidden = true;
-        const btn = f.querySelector("button"); btn.disabled = true;
-        try {
-          const email = f.elements.e.value.trim(), password = f.elements.p.value;
-          const { error } = await sb.auth.signInWithPassword({ email, password });
-          if (error) throw new Error(/invalid/i.test(error.message) ? "Email hoặc mật khẩu không đúng." : error.message);
-          const who = await whoAmI();
-          if (!who.thanh_vien) { await sb.auth.signOut(); throw new Error(notMemberMsg(email)); }
-          try { localStorage.setItem("itpc-last-email", email); } catch (e) {}
-          box.remove();
-          resolve(who);
-        } catch (e) {
-          er.textContent = e instanceof TypeError ? "Không kết nối được máy chủ dữ liệu, thử lại sau." : e.message;
-          er.hidden = false;
-        } finally { btn.disabled = false; }
-      };
+      const logo = escH((document.querySelector(".logo-img") || {}).src || "");
+      const head = sub => `<div class="lg-head"><img class="logo-img" alt="" src="${logo}"><div><strong>Quản lý Chương trình ITPC</strong><small>${sub}</small></div></div>`;
+      let lastEmail = ""; try { lastEmail = localStorage.getItem("itpc-last-email") || ""; } catch (e) {}
+      let gateCh = null, gatePoll = null;
+      const stopGate = () => { if (gateCh) { sb.removeChannel(gateCh); gateCh = null; } clearInterval(gatePoll); };
+
+      const done = w => { stopGate(); box.remove(); resolve(w); };
+      async function afterSignIn() {
+        const w = await whoAmI();
+        if (w.thanh_vien) return done(w);
+        render("gate", null, w);
+      }
+
+      function render(m, msg, w) {
+        stopGate();
+        const err = msg && msg.err ? `<div class="err lg-err">${escH(msg.err)}</div>` : '<div class="err lg-err" hidden></div>';
+        const info = msg && msg.ok ? `<div class="lg-ok">${escH(msg.ok)}</div>` : "";
+        if (m === "login") box.innerHTML = `
+          <form class="lg-card" novalidate>${head("Đăng nhập để dùng dữ liệu chung của phòng")}${info}
+            <label>Email<input name="e" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ten@itpc.gov.vn"></label>
+            <label>Mật khẩu<input name="p" type="password" autocomplete="current-password"></label>
+            ${err}
+            <button class="btn pri" type="submit">Đăng nhập</button>
+            <div class="lg-links"><a href="#" data-go="signup">Đăng ký tài khoản mới</a><a href="#" data-go="forgot">Quên mật khẩu?</a></div>
+          </form>`;
+        else if (m === "signup") box.innerHTML = `
+          <form class="lg-card" novalidate>${head("Đăng ký tài khoản — quản trị sẽ duyệt trước khi bạn xem được dữ liệu")}
+            <label>Họ và tên<input name="n" autocomplete="name" placeholder="VD: Nguyễn Văn A"></label>
+            <label>Email<input name="e" type="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ten@itpc.gov.vn"></label>
+            <label>Mật khẩu (ít nhất 8 ký tự)<input name="p" type="password" autocomplete="new-password"></label>
+            <label>Nhập lại mật khẩu<input name="p2" type="password" autocomplete="new-password"></label>
+            ${err}
+            <button class="btn pri" type="submit">Đăng ký</button>
+            <div class="lg-links"><a href="#" data-go="login">Đã có tài khoản? Đăng nhập</a></div>
+          </form>`;
+        else if (m === "forgot") box.innerHTML = `
+          <form class="lg-card" novalidate>${head("Nhập email đã đăng ký, hệ thống gửi link đặt lại mật khẩu")}${info}
+            <label>Email<input name="e" type="email" autocomplete="username" autocapitalize="none" spellcheck="false"></label>
+            ${err}
+            <button class="btn pri" type="submit">Gửi link đặt lại mật khẩu</button>
+            <div class="lg-links"><a href="#" data-go="login">Quay lại đăng nhập</a></div>
+          </form>`;
+        else box.innerHTML = `
+          <div class="lg-card">${head(escH(w.ho_ten || w.email))}
+            <div class="${w.quyen === "khoa" ? "err lg-err" : "lg-ok"}">${w.quyen === "khoa"
+              ? "Tài khoản này đã bị khóa. Liên hệ quản trị của phòng nếu cần mở lại."
+              : `Đã đăng ký tài khoản <b>${escH(w.email)}</b>. Đang chờ quản trị duyệt — khi được duyệt, trang sẽ tự vào.`}</div>
+            <button class="btn pri" type="button" data-act="check">Kiểm tra lại</button>
+            <div class="lg-links"><a href="#" data-act="out">Đăng xuất</a></div>
+          </div>`;
+
+        box.querySelectorAll("[data-go]").forEach(a => a.onclick = ev => { ev.preventDefault(); render(a.dataset.go); });
+        const f = box.querySelector("form");
+        if (f) {
+          if (f.elements.e && !f.elements.e.value) f.elements.e.value = lastEmail;
+          setTimeout(() => { const first = [...f.querySelectorAll("input")].find(i => !i.value) || f.querySelector("input"); first && first.focus(); }, 30);
+          const er = f.querySelector(".lg-err");
+          const fail = t => { er.textContent = t; er.hidden = false; };
+          f.onsubmit = async ev => {
+            ev.preventDefault();
+            er.hidden = true;
+            const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+            const email = (f.elements.e.value || "").trim().toLowerCase();
+            try {
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail("Email chưa đúng định dạng.");
+              lastEmail = email; try { localStorage.setItem("itpc-last-email", email); } catch (e) {}
+              if (m === "login") {
+                const { error } = await sb.auth.signInWithPassword({ email, password: f.elements.p.value });
+                if (error) return fail(mapErr(error.message));
+                await afterSignIn();
+              } else if (m === "signup") {
+                const ho_ten = f.elements.n.value.trim(), p = f.elements.p.value;
+                if (!ho_ten) return fail("Nhập họ và tên.");
+                if (p.length < 8) return fail("Mật khẩu cần ít nhất 8 ký tự.");
+                if (p !== f.elements.p2.value) return fail("Hai lần nhập mật khẩu không giống nhau.");
+                const { data, error } = await sb.auth.signUp({ email, password: p, options: { data: { ho_ten }, emailRedirectTo: location.origin + location.pathname } });
+                if (error) return fail(mapErr(error.message));
+                // Supabase trả về user không có identities khi email đã tồn tại (để không lộ thông tin)
+                if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return fail(mapErr("already registered"));
+                if (data.session) await afterSignIn();
+                else render("login", { ok: `Đã đăng ký. Mở email ${email} và bấm link xác nhận, sau đó đăng nhập. Quản trị cần duyệt trước khi bạn xem được dữ liệu.` });
+              } else if (m === "forgot") {
+                const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+                if (error) return fail(mapErr(error.message));
+                render("forgot", { ok: `Nếu ${email} đã đăng ký, một email đặt lại mật khẩu vừa được gửi. Mở email và bấm vào link.` });
+              }
+            } catch (e) {
+              fail(e instanceof TypeError ? "Không kết nối được máy chủ dữ liệu, thử lại sau." : (e.message || String(e)));
+            } finally { if (btn.isConnected) btn.disabled = false; }
+          };
+        } else {
+          // Đang chờ duyệt: theo dõi dòng của chính mình, được duyệt là vào ngay
+          box.querySelector("[data-act=check]").onclick = () => afterSignIn().catch(() => {});
+          box.querySelector("[data-act=out]").onclick = async ev => { ev.preventDefault(); clearCache(); await sb.auth.signOut(); render("login"); };
+          if (w.quyen !== "khoa") {
+            gateCh = sb.channel("tv-toi").on("postgres_changes", { event: "*", schema: "public", table: "thanh_vien" }, () => afterSignIn().catch(() => {})).subscribe();
+            gatePoll = setInterval(() => afterSignIn().catch(() => {}), 30000);
+          }
+        }
+      }
+      render(mode, null, who);
     }));
   }
 
@@ -126,7 +210,7 @@
     let el = document.getElementById("acct");
     if (!el) { el = document.createElement("div"); el.className = "acct"; el.id = "acct"; aside.appendChild(el); }
     el.innerHTML = `
-      <div class="acct-u"><strong title="${escH(me.email)}">${escH(me.ho_ten || me.email)}</strong><small>${me.ho_ten ? escH(me.email) + " · " : ""}${me.quan_tri ? "Quản trị" : "Chỉ xem"}</small></div>
+      <div class="acct-u"><strong title="${escH(me.email)}">${escH(me.ho_ten || me.email)}</strong><small>${me.ho_ten ? escH(me.email) + " · " : ""}${QUYEN[me.quyen] || ""}</small></div>
       <div class="acct-b">
         <button type="button" class="btn sm" id="bkBtn" title="Tải toàn bộ dữ liệu ra file JSON">Sao lưu</button>
         ${me.quan_tri ? '<button type="button" class="btn sm" id="rsBtn" title="Thay toàn bộ dữ liệu bằng một file sao lưu">Khôi phục</button>' : ""}
@@ -136,7 +220,7 @@
       <input type="file" id="rsFile" accept=".json,application/json" hidden>`;
     el.querySelector("#bkBtn").onclick = () => backup().catch(e => say("Chưa sao lưu được: " + e.message));
     el.querySelector("#pwBtn").onclick = () => changePassword(false);
-    el.querySelector("#loBtn").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+    el.querySelector("#loBtn").onclick = async () => { clearCache(); await sb.auth.signOut(); clearCache(); location.reload(); };
     const rs = el.querySelector("#rsBtn"), file = el.querySelector("#rsFile");
     if (rs) {
       rs.onclick = () => { file.value = ""; file.click(); };
@@ -155,6 +239,65 @@
         } catch (e) { say("Không khôi phục được: " + e.message); }
       };
     }
+  }
+
+  /* ================= Tab "Thành viên" (chỉ quản trị) ================= */
+  const MV = "thanh-vien";
+  let members = [], memberErr = "";
+  function setupMembers() {
+    if (!me.quan_tri || document.querySelector(`#nav a[data-v="${MV}"]`)) return;
+    const a = document.createElement("a");
+    a.href = "#" + MV; a.dataset.v = MV;
+    a.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="4"/><path d="M2 21v-1a7 7 0 0 1 14 0v1M16 3.5a4 4 0 0 1 0 9M22 21v-1a7 7 0 0 0-4-6.3"/></svg>Thành viên<span class="tv-badge" hidden></span>';
+    document.getElementById("nav").appendChild(a);
+    // route() của app.js là hàm khai báo toàn cục: bọc lại để thêm màn "Thành viên", không sửa app.js
+    const orig = window.route;
+    window.removeEventListener("hashchange", orig);
+    window.route = function () {
+      if (location.hash !== "#" + MV) return orig.apply(this, arguments);
+      document.querySelectorAll("#nav a").forEach(x => x.classList.toggle("on", x.dataset.v === MV));
+      viewMembers();
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", () => window.route());
+    sb.channel("tv-all").on("postgres_changes", { event: "*", schema: "public", table: "thanh_vien" }, () => loadMembers()).subscribe();
+    loadMembers();
+    if (location.hash === "#" + MV) window.route();
+  }
+
+  async function loadMembers() {
+    const { data, error } = await sb.rpc("danh_sach_thanh_vien");
+    if (error) memberErr = error.message; else { members = data || []; memberErr = ""; }
+    const n = members.filter(m => m.quyen === "cho_duyet").length;
+    const b = document.querySelector(".tv-badge");
+    if (b) { b.hidden = !n; b.textContent = n; b.title = n + " tài khoản chờ duyệt"; }
+    const busy = document.querySelector("dialog[open]") || (document.activeElement && document.activeElement.matches && document.activeElement.matches("#view select"));
+    if (location.hash === "#" + MV && !busy) viewMembers();
+  }
+
+  function viewMembers() {
+    const view = document.getElementById("view");
+    const t = iso => iso ? new Date(iso).toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
+    const pend = members.filter(m => m.quyen === "cho_duyet").length;
+    view.innerHTML = `
+      <div class="head"><div><h1>Thành viên</h1><p class="sub">${members.length} tài khoản${pend ? ` · <b>${pend} chờ duyệt</b>` : ""} · chọn quyền để cấp hoặc thu hồi</p></div></div>
+      ${memberErr ? `<div class="confirm" style="margin-bottom:14px">${escH(memberErr)}</div>` : ""}
+      <div class="tbl-wrap"><table class="tv-tbl"><thead><tr><th>Họ tên</th><th>Email</th><th>Đăng ký lúc</th><th>Đăng nhập gần nhất</th><th>Quyền</th></tr></thead><tbody>
+      ${members.map(m => {
+        const self = m.email === me.email;
+        return `<tr${m.quyen === "cho_duyet" ? ' class="tv-pend"' : ""}><td><div class="t-name">${escH(m.ho_ten || "—")}</div></td><td>${escH(m.email)}</td><td class="num">${t(m.created_at)}</td><td class="num">${t(m.last_sign_in_at)}</td>
+          <td><select data-tv="${escH(m.email)}" aria-label="Quyền của ${escH(m.email)}" ${self ? 'disabled title="Không thể tự đổi quyền của chính mình"' : ""}>${Object.entries(QUYEN).map(([k, v]) => `<option value="${k}"${m.quyen === k ? " selected" : ""}>${v}</option>`).join("")}</select>${self ? ' <span class="t-meta">(bạn)</span>' : ""}</td></tr>`;
+      }).join("") || '<tr><td colspan="5"><div class="empty">Chưa có tài khoản nào.</div></td></tr>'}
+      </tbody></table></div>
+      <p class="t-meta" style="margin-top:12px;line-height:1.7"><b>Chờ duyệt</b>: đã đăng ký, chưa xem được dữ liệu · <b>Chỉ xem</b>: xem, xuất Excel, sao lưu · <b>Quản trị</b>: thêm/sửa/xóa, khôi phục, cấp quyền · <b>Khóa</b>: không vào được nữa.</p>`;
+    view.querySelectorAll("select[data-tv]").forEach(s => s.onchange = async () => {
+      s.disabled = true;
+      const { error } = await sb.rpc("dat_quyen", { p_email: s.dataset.tv, p_quyen: s.value });
+      if (error) say("Không đổi được quyền: " + error.message);
+      else say(`Đã đặt quyền "${QUYEN[s.value]}" cho ${s.dataset.tv}`);
+      s.blur();
+      await loadMembers();
+    });
   }
 
   async function fetchAll(col) {
