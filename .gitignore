@@ -9,3 +9,4 @@ itpc-du-lieu_*.json
 itpc-chuong-trinh_*.html
 *.csv
 *.xlsx
+dist/

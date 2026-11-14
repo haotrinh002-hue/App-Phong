@@ -1,0 +1,9 @@
+# Vercel chỉ cần public/, scripts/build-vercel.js và package*.json
+server.js
+lib/
+data/
+supabase/
+*.csv
+*.xlsx
+itpc-du-lieu_*.json
+itpc-chuong-trinh_*.html

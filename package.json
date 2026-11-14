@@ -7,12 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "backup": "node scripts/backup.js",
-    "restore": "node scripts/restore.js"
+    "restore": "node scripts/restore.js",
+    "build:vercel": "node scripts/build-vercel.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "better-sqlite3": "^13.1.1",
     "express": "^4.22.3",
     "xlsx": "^0.18.5"
