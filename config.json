@@ -1,0 +1,9 @@
+{
+  "port": 3000,
+  "host": "0.0.0.0",
+  "admins": ["tnhao.itpc"],
+  "seedFile": "itpc-du-lieu_2026-11-14.json",
+  "dbFile": "data/itpc.db",
+  "backupDir": "data/backups",
+  "autoBackupKeep": 30
+}

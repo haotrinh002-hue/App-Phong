@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quản lý Chương trình ITPC</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Lora:wght@600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="app">
+  <aside>
+    <div class="logo"><img class="logo-img" src="data:image/png;base64,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" alt="Logo ITPC" width="40" height="40"><div><strong>Phòng XTPTNT&amp;TTTN</strong><small>Quản lý chương trình</small></div></div>
+    <nav id="nav">
+      <a href="#tong-quan" data-v="tong-quan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Tổng quan</a>
+      <a href="#chuong-trinh" data-v="chuong-trinh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Chương trình</a>
+      <a href="#lich" data-v="lich"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Lịch năm</a>
+      <a href="#thong-ke" data-v="thong-ke"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Thống kê</a>
+      <a href="#doanh-nghiep" data-v="doanh-nghiep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1M9 13h1M14 9h1M14 13h1M10 21v-4h4v4"/></svg>Dữ liệu doanh nghiệp</a>
+    </nav>
+    <button type="button" class="btn sm" id="xlsBtn" hidden style="margin-top:auto;justify-content:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3"/></svg>Xuất Excel</button>
+    <div class="demo-note" id="syncNote"><span class="sync-dot off"></span>Đang kết nối dữ liệu chung…</div>
+  </aside>
+  <main id="view"></main>
+</div>
+
+<dialog id="dlg">
+  <form id="frm" novalidate>
+    <div class="dlg-h"><h2 id="dlgTitle">Thêm chương trình</h2><button type="button" class="btn sm" id="dlgX">Đóng</button></div>
+    <div class="dlg-b">
+      <label class="full">Tên chương trình<input id="f-ten" required placeholder="VD: VIETNAM FOOD EXPO 2026" style="text-transform:uppercase"></label>
+      <label>Loại hình<select id="f-loai"></select></label>
+      <label>Trạng thái<select id="f-tt"></select><small style="font-weight:400">“Đang diễn ra” tự bật trong những ngày chương trình diễn ra</small></label>
+      <label>Ngành hàng<select id="f-nganh"></select></label>
+      <label>Thị trường / Quốc gia<input id="f-tt2" placeholder="VD: Nhật Bản"></label>
+      <label>Địa điểm<input id="f-dd" placeholder="VD: Tokyo"></label>
+      <label>Ngày bắt đầu<input id="f-bd" type="date" required></label>
+      <label>Ngày kết thúc<input id="f-kt" type="date" required></label>
+      <label class="full" style="flex-direction:row;align-items:center;gap:8px;font-weight:500;color:var(--ink)"><input type="checkbox" id="f-crn" style="width:18px;height:18px;flex:none">Chưa rõ ngày, mới biết tháng (chọn một ngày bất kỳ trong tháng ở ô Ngày bắt đầu)</label>
+      <div class="flabel full">Chuyên viên phụ trách (chọn nhiều người)<div class="chips" id="f-cv-chips"></div><select id="f-cv-add" aria-label="Thêm chuyên viên phụ trách"></select></div>
+      <label>Lãnh đạo phụ trách<select id="f-ld"></select></label>
+      <label>Kinh phí dự kiến (đồng)<input id="f-kp" inputmode="numeric"></label>
+      <label>Nguồn thu về ITPC (đồng)<input id="f-thu" inputmode="numeric"></label>
+      <label>Số doanh nghiệp đã đăng ký<input id="f-sodn" inputmode="numeric" placeholder="0"></label>
+      <label>Số doanh nghiệp tối đa (chỉ tiêu)<input id="f-max" inputmode="numeric"></label>
+      <label>Nguồn kinh phí<select id="f-nguon"></select></label>
+      <label class="full">Ghi chú<textarea id="f-gc" rows="3"></textarea></label>
+      <div class="err" id="f-err" hidden></div>
+    </div>
+    <div class="dlg-f"><button type="button" class="btn" id="dlgCancel">Hủy</button><button class="btn pri" type="submit">Lưu chương trình</button></div>
+  </form>
+</dialog>
+<dialog id="dlgMC">
+  <form id="frmMC" novalidate>
+    <div class="dlg-h"><div style="min-width:0"><h2>Minh chứng hoàn thành</h2><div class="t-meta" id="mcTen"></div></div><button type="button" class="btn sm" id="mcX">Đóng</button></div>
+    <div class="dlg-b" style="display:block">
+      <div id="mcRows"></div>
+      <button type="button" class="btn sm" id="mcAdd" style="margin-top:10px">+ Thêm minh chứng</button>
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-top:14px" class="mc-extra">
+        <label>Ngày hoàn thành<input id="mcNgay" type="date"></label>
+        <label>Ghi chú (tùy chọn)<input id="mcGc" placeholder="VD: đã gửi bản giấy cho Phòng Kế toán"></label>
+      </div>
+      <div class="err" id="mcErr" hidden style="margin-top:10px"></div>
+    </div>
+    <div class="dlg-f"><button type="button" class="btn" id="mcCancel">Hủy</button><button class="btn ok" type="submit">Xác nhận hoàn thành</button></div>
+  </form>
+</dialog>
+<dialog id="dlgDN">
+  <form id="frmDN" novalidate>
+    <div class="dlg-h"><h2 id="dnTitle">Thêm doanh nghiệp</h2><button type="button" class="btn sm" id="dnX">Đóng</button></div>
+    <div class="dlg-b">
+      <label class="full">1. Tên doanh nghiệp / Công ty<input id="d-ten" placeholder="VD: CÔNG TY CP THỰC PHẨM SAO VIỆT" style="text-transform:uppercase"></label>
+      <label>2. Ngành hàng<select id="d-nganh"></select></label>
+      <label id="d-nganh-khac-wrap" hidden>Ngành hàng khác<input id="d-nganh-khac" placeholder="Ghi rõ ngành hàng"></label>
+      <label class="full">3. Sản phẩm / dịch vụ chính<input id="d-sp" placeholder="VD: Cà phê rang xay, hạt điều"></label>
+      <label>4. Quốc gia<input id="d-qg" list="qgList" placeholder="VD: Việt Nam"></label>
+      <label>5. Mã số thuế<input id="d-mst" inputmode="numeric" placeholder="0123456789 hoặc 0123456789-001"></label>
+      <label class="full">6. Địa chỉ<input id="d-dc" placeholder="Số nhà, tên đường, phường/xã, tỉnh/thành"></label>
+      <label class="full">7. Website<input id="d-web" inputmode="url" placeholder="VD: congty.com.vn"></label>
+      <label>8. Người liên hệ<input id="d-nlh"></label>
+      <label>9. Chức vụ<input id="d-cv" placeholder="VD: Giám đốc"></label>
+      <label>10. Số điện thoại<input id="d-sdt" inputmode="tel" placeholder="VD: 0903 123 456"></label>
+      <label>11. Email<input id="d-email" type="email" placeholder="ten@congty.vn"></label>
+      <div class="full flabel">Người liên hệ khác<div id="d-lhk"></div><button type="button" class="btn sm" id="d-lhk-add" style="align-self:flex-start">+ Thêm người liên hệ</button></div>
+      <label class="full">12. Ghi chú<textarea id="d-gc" rows="3" placeholder="Ghi chú nội bộ, chỉ hiện khi mở chi tiết doanh nghiệp"></textarea></label>
+      <div class="err" id="d-err" hidden></div>
+      <div class="full" id="dnDelBox"></div>
+    </div>
+    <div class="dlg-f"><button type="button" class="btn danger" id="dnDel" style="margin-right:auto" hidden>Xóa</button><button type="button" class="btn" id="dnCancel">Hủy</button><button class="btn pri" type="submit">Lưu doanh nghiệp</button></div>
+  </form>
+</dialog>
+<datalist id="qgList"></datalist>
+<div class="toast" id="toast" hidden></div>
+
+<script src="local-api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
