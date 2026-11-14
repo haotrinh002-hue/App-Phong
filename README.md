@@ -142,3 +142,76 @@ So với file HTML gốc, `app.js` chỉ khác ba dòng:
 | Máy khác không vào được | Kiểm tra cùng mạng, địa chỉ IP và Firewall (mục 3) |
 | Thanh bên hiện *"Mất kết nối dữ liệu chung"* | Máy chủ đã tắt hoặc mất mạng. Trang tự kết nối lại khi máy chủ chạy trở lại |
 | Hộp xác nhận báo *"không có quyền quản trị"* | Tên đó chưa có trong `admins` của `config.json`. Thêm vào rồi khởi động lại máy chủ |
+
+## 10. Đưa lên Internet (Vercel + Supabase)
+
+Ngoài bản LAN, app còn chạy được trên Internet:
+
+- **Vercel** phục vụ giao diện, có địa chỉ dạng `https://ten-du-an.vercel.app`.
+- **Supabase** lưu dữ liệu, cập nhật trực tiếp và quản lý đăng nhập.
+
+Cả hai đều có gói miễn phí. Trên Internet, **mỗi người đăng nhập bằng email và mật khẩu riêng**. Chỉ email có trong bảng `thanh_vien` mới xem được dữ liệu, và chỉ người có `quan_tri = true` mới thêm, sửa, xóa được. Quyền được kiểm tra ngay trong CSDL, nên người lạ dù tự tạo được tài khoản cũng không xem được gì.
+
+> Bản LAN và bản Internet dùng **hai bộ dữ liệu riêng**. Sau khi chuyển dữ liệu lên Internet (bước C), cả phòng chỉ nên dùng bản Internet, để tránh sửa ở hai nơi.
+
+### A. Tạo CSDL trên Supabase
+
+1. Vào https://supabase.com, đăng ký tài khoản (có thể dùng tài khoản GitHub), rồi chọn **New project**.
+   - **Name:** `itpc`. **Region:** *Southeast Asia (Singapore)*.
+   - **Database Password:** tạo một mật khẩu mạnh và cất kỹ. Mật khẩu này không dùng hằng ngày.
+2. Đợi project tạo xong (khoảng 1–2 phút). Vào **SQL Editor**, chọn **New query**. Mở file [`supabase/schema.sql`](supabase/schema.sql), chép **toàn bộ** nội dung, dán vào ô truy vấn rồi bấm **Run**. Kết quả phải là *Success*.
+3. Thêm bạn làm quản trị: vẫn trong SQL Editor, chạy câu sau sau khi sửa email và tên:
+   ```sql
+   insert into public.thanh_vien (email, ho_ten, quan_tri)
+   values ('email-cua-ban@gmail.com', 'Tên của bạn', true)
+   on conflict (email) do update set ho_ten = excluded.ho_ten, quan_tri = excluded.quan_tri;
+   ```
+4. **Tắt tự đăng ký:** vào **Authentication → Sign In / Providers**, tắt **Allow new users to sign up**. Giữ **Email** ở trạng thái bật.
+5. **Tạo tài khoản đăng nhập** cho bạn và từng cán bộ: vào **Authentication → Users → Add user → Create new user**, nhập email và mật khẩu, đánh dấu **Auto Confirm User**.
+   - Mỗi người cũng phải có một dòng trong bảng `thanh_vien`. Dùng câu ở bước 3, với `quan_tri` là `false` nếu chỉ cho xem.
+   - Người dùng có thể tự đổi mật khẩu bằng nút **Đổi mật khẩu** trong app.
+6. Lấy khóa kết nối: vào **Project Settings → API Keys** (hoặc **Data API**) và chép 2 giá trị:
+   - **Project URL**, dạng `https://xxxx.supabase.co`
+   - **anon / publishable key**. Đây là khóa công khai, dùng được ở giao diện.
+
+   > **Không bao giờ** dùng khóa `service_role` hay `secret` cho Vercel. Khóa đó vượt qua mọi phân quyền.
+
+### B. Đưa giao diện lên Vercel
+
+1. Vào https://vercel.com, chọn **Sign Up → Continue with GitHub**.
+2. Chọn **Add New… → Project**. Ở repo **App-Phong**, bấm **Import**. Nếu không thấy repo, bấm *Adjust GitHub App Permissions* để cấp quyền.
+3. Ở màn cấu hình:
+   - **Framework Preset:** để *Other*. Các lệnh build đã khai báo sẵn trong `vercel.json`.
+   - Mở **Environment Variables** và thêm 2 biến:
+     | Name | Value |
+     |---|---|
+     | `SUPABASE_URL` | Project URL ở bước A6 |
+     | `SUPABASE_ANON_KEY` | anon/publishable key ở bước A6 |
+4. Bấm **Deploy**. Khoảng 1 phút sau, bạn có địa chỉ `https://….vercel.app`.
+5. Quay lại Supabase, vào **Authentication → URL Configuration**. Điền **Site URL** là địa chỉ Vercel vừa có, để email mời và email đặt lại mật khẩu dẫn về đúng trang.
+
+Từ đó, mỗi lần merge code mới vào nhánh `main` trên GitHub, Vercel tự build và cập nhật web.
+
+### C. Chuyển dữ liệu hiện có lên Supabase
+
+1. Trên máy chạy bản LAN, bấm **Sao lưu** (hoặc chạy `npm run backup`) để có file `itpc-du-lieu_….json`.
+2. Mở địa chỉ Vercel và đăng nhập bằng tài khoản quản trị.
+3. Bấm **Khôi phục** ở thanh bên trái, chọn file vừa sao lưu rồi xác nhận. Toàn bộ chương trình và doanh nghiệp được nạp lên trong một lần.
+
+### D. Quản lý hằng ngày
+
+- **Thêm người:** tạo tài khoản (bước A5), rồi thêm một dòng vào `thanh_vien`.
+- **Thu hồi quyền:** xóa dòng của người đó trong **Table Editor → thanh_vien**. Người đó không xem được nữa, kể cả khi còn mật khẩu.
+- **Quên mật khẩu:** quản trị vào **Authentication → Users**, chọn người dùng, rồi chọn **Send password recovery**. Người dùng mở link trong email và đặt mật khẩu mới.
+- **Ai sửa gì:** trong **Table Editor → doanhnghiep** (hoặc `programs`), cột `updated_by` và `updated_at` cho biết ai sửa lần cuối và lúc nào.
+- **Sao lưu:** gói miễn phí của Supabase không có bản sao lưu để tải về. Nên bấm **Sao lưu** trong app **mỗi tuần** và cất file ở nơi an toàn.
+- **Project bị tạm dừng:** project miễn phí của Supabase bị tạm dừng nếu **7 ngày** không ai dùng. Khi đó, vào supabase.com và bấm **Restore project**. Dữ liệu không mất.
+
+### Cấu trúc thêm cho bản Internet
+
+```
+public/cloud-api.js       Lớp giả lập window.claude.use(...) gọi Supabase (đăng nhập, realtime, sao lưu/khôi phục)
+scripts/build-vercel.js   Build vào dist/: thay local-api.js bằng cloud-api.js, tạo supabase-config.js từ biến môi trường
+supabase/schema.sql       Bảng, phân quyền (RLS), hàm khôi phục, bật Realtime
+vercel.json               Lệnh build và thư mục xuất cho Vercel
+```

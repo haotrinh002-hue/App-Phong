@@ -249,3 +249,11 @@ body.ro tr.click[data-id]{cursor:default}
 .acct-b{display:flex;flex-wrap:wrap;gap:6px}
 .acct-b .btn{padding:4px 9px;font-size:12px}
 @media (max-width:720px){.acct{display:none}}
+/* Màn đăng nhập (bản Vercel + Supabase) */
+.lg-wrap{position:fixed;inset:0;z-index:100;background:var(--bg);display:grid;place-items:center;padding:16px}
+.lg-card{width:min(380px,100%);background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:24px;display:flex;flex-direction:column;gap:14px}
+.lg-head{display:flex;gap:12px;align-items:center}
+.lg-head strong{display:block;font-family:var(--serif);font-size:18px;color:var(--ink)}
+.lg-head small{color:var(--muted);font-size:12.5px}
+.lg-card .btn{justify-content:center}
+.lg-note{margin:0;color:var(--muted);font-size:12px}
