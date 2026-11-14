@@ -1,0 +1,20 @@
+{
+  "name": "itpc-quan-ly-chuong-trinh",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Quản lý Chương trình ITPC — bản chạy local (Express + SQLite, realtime qua SSE)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.1.1",
+    "express": "^4.22.3",
+    "xlsx": "^0.18.5"
+  }
+}
