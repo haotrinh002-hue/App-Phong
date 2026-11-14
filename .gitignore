@@ -1,0 +1,11 @@
+node_modules/
+data/*.db
+data/*.db-*
+data/secret.key
+data/backups/
+
+# Dữ liệu thật của phòng (thông tin liên hệ doanh nghiệp) — không đưa lên GitHub
+itpc-du-lieu_*.json
+itpc-chuong-trinh_*.html
+*.csv
+*.xlsx
